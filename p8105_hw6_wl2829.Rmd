@@ -125,11 +125,13 @@ Bootstrapping. Create a list column
 ```{r}
 boot_straps = 
   tibble(
-    strap_number = 1:2000,
-    strap_sample = rerun(2000, boot_sample(weather_df))
+    strap_number = 1:5000,
+    strap_sample = rerun(5000, boot_sample(weather_df))
   )
 
 ```
+
+### r squared estimate
 
 ```{r}
 bootstrap_results1 = 
@@ -143,14 +145,43 @@ bootstrap_results1 =
 bootstrap_results1 %>% ## make a plot
   ggplot(aes(x = r.squared)) +
   geom_density()
-
 ```
+
+The shape of the distribution of estimates can be used to evaluate the performance of the estimator. The bootstrap distribution is centered at approximately 0.91 and the shape has a heavy tail extending to low values.
 
 Confidence Interval
 ```{r}
 CI = c(quantile(bootstrap_results1$r.squared, 0.025), quantile(bootstrap_results1$r.squared, 0.975))
 ```
 
-The 95% confidence interval is `r CI`
+The 95% confidence interval is (`r CI`).
 
+### Beta estimate
 
+```{r}
+bootstrap_results2 = 
+  boot_straps %>% 
+  mutate(
+    models = map(strap_sample, ~lm(tmax ~ tmin, data = .x) ),
+    results = map(models, broom::tidy)) %>% 
+  select(strap_number, results) %>% 
+  unnest(results) %>% 
+  select(strap_number, term, estimate) %>% 
+  pivot_wider(names_from = term,
+              values_from = estimate) %>% 
+  mutate(log_beta = log(`(Intercept)` * tmin))
+
+bootstrap_results2 %>% 
+  ggplot(aes(x = log_beta)) + 
+  geom_density()
+```
+
+The distribution is centered at approximately 2.02 and the shape of distribution look similar to normal distribution.
+
+Confidence Interval
+
+```{r}
+CI = c(quantile(bootstrap_results2$log_beta, 0.025), quantile(bootstrap_results2$log_beta, 0.975))
+```
+
+The 95% confidence interval is (`r CI`).
